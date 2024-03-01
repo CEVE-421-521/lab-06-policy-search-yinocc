@@ -1,0 +1,57 @@
+---
+title: "Lab 6: Policy Search"
+author: "Your Name (netID)"
+jupyter: julia-1.10
+date: 2024-03-01
+week: 7
+categories: [Lab]
+
+format: 
+    html: default
+
+    # YOU DO NOT NEED BOTH PDF AND DOCX.
+    # COMMENT OR DELETE THE ONE YOU DON'T WANT TO USE.
+    pdf:
+        documentclass: article
+        fontsize: 11pt
+        geometry:
+            - margin=1in  
+        number-sections: true
+        code-line-numbers: true
+    #docx: 
+    #    toc: true
+    #    fig-format: png
+    #    number-sections: true
+    #    code-line-numbers: true
+
+date-format: "ddd., MMM. D"
+
+execute: 
+  cache: true
+  freeze: auto
+
+bibliography: references.bib
+---
+
+```{julia}
+using Revise
+using HouseElevation
+
+using CSV
+using DataFrames
+using DataFramesMeta
+using Distributions
+using LaTeXStrings
+using Metaheuristics
+using Plots
+using Random
+using Unitful
+
+Plots.default(; margin=5Plots.mm)
+```
+
+```{julia}
+function objective_function(a::AbstractFloat)
+    return true # PLACEHOLDER
+end
+```

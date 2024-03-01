@@ -1,0 +1,13 @@
+.jupyter_cache
+
+index.*
+!index.qmd
+
+data/*
+.jupyter_cache/
+
+index_files/
+template_files/
+
+*.html
+*.pdf

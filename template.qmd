@@ -1,8 +1,8 @@
 ---
 title: "Lab 6: Policy Search"
-author: "Your Name (netID)"
+author: "Jiayue Yin(jy152)"
 jupyter: julia-1.10
-date: 2024-03-01
+date: 2024-03-06
 week: 7
 categories: [Lab]
 
@@ -13,7 +13,7 @@ format:
     # COMMENT OR DELETE THE ONE YOU DON'T WANT TO USE.
     pdf:
         documentclass: article
-        fontsize: 11pt
+        fontsize: 12pt
         geometry:
             - margin=1in  
         number-sections: true
@@ -48,10 +48,107 @@ using Random
 using Unitful
 
 Plots.default(; margin=5Plots.mm)
+
+```
+
+
+```{julia}
+slr_scenarios = let
+    df = CSV.read("data/slr_oddo.csv", DataFrame)
+    [Oddo17SLR(a, b, c, tstar, cstar) for (a, b, c, tstar, cstar) in eachrow(df)]
+end
+
+house = let
+    haz_fl_dept = CSV.read("data/haz_fl_dept.csv", DataFrame) # read in the file
+    desc = "one story, Contents, fresh water, short duration"
+    row = @rsubset(haz_fl_dept, :Description == desc)[1, :] # select the row I want
+    area = 500u"ft^2"
+    height_above_gauge = 10u"ft"
+    House(row; area=area, height_above_gauge=height_above_gauge, value_usd=250_000)
+end
+
+p = ModelParams(; house=house, years=2024:2083)
+
 ```
 
 ```{julia}
-function objective_function(a::AbstractFloat)
-    return true # PLACEHOLDER
+
+function draw_surge_distribution()
+    μ = rand(Normal(5, 1))
+    σ = rand(Exponential(1.5))
+    ξ = rand(Normal(0.1, 0.05))
+    return GeneralizedExtremeValue(μ, σ, ξ)
+end
+
+function draw_discount_rate()
+    return 0.0
+end
+
+N_SOW = 10000
+option = 100
+sows = [
+    SOW(rand(slr_scenarios), draw_surge_distribution(), draw_discount_rate()) for
+    _ in 1:N_SOW
+] # for 10 SOWs
+
+N_SOW_opt = [sows[i] for i in 1:option];
+
+```
+
+
+```{julia}
+f(x) = 10length(x) + sum(x .^ 2 - 10cos.(2π * x))
+let
+    x = range(-5; stop=5, length=1000)
+    y = range(-5; stop=5, length=1000)
+    z = [f([i, j]) for i in x, j in y]
+
+    # Create the surface plot
+    surface(
+        x, y, z; xlabel="x1", ylabel="x2", zlabel="f(x)", title=L"Minimize $f(x)$ for $D=2$"
+    )
+end
+
+```
+
+```{julia}
+function objective_function(a)
+    a = a[1,1]
+    action = Action(a)
+    costs = [run_sim(action, N_SOW_opt[i], p) for i in 1:length(N_SOW_opt)]
+    return -1*sum(costs)
 end
 ```
+
+```{julia}
+D = 8
+bounds = boxconstraints(; lb=-5ones(D), ub=5ones(D))
+result = optimize(f, bounds)
+minimizer(result)
+options = Options(; time_limit=100.0)
+algorithm = ECA(; options=options)
+Random.seed!(2014)
+result = optimize(f, bounds, algorithm)
+```
+
+
+```{julia}
+heights = 1.0:14.0
+plot(
+    heights,
+    objective_function.(heights);
+    xlabel="Elevation",
+    ylabel="NPV",
+    title="Elevation and NPV",
+)
+```
+
+## Reflection
+
+1. How are we framing this problem? What are the decision variables, the objective function, and the states of the world over which we optimize?
+Our question revolves around how to find the optimal house elevation to minimize the Net Present Value (NPV) of flood risk. The decision variable is the height of the house elevation, the objective function is the net present value (NPV), and the world states we want to consider optimizing include sea level rise, the distribution of storm surges, and the discount rate.
+2. Diggning deeper, we are averaging the objective function computed over a finite number of states of the world. This assumes that they are all drawn from a distribution representing the “true” distribution of states of the world. Is this a good assumption?
+I don't think it is a good asummption, the climate change model should be way more complex and other factoe like strom and rainfall will add the flood risk. The discount rate is another factor which uncertaincy is really underestimated. Also the owner of the house should have the right to chose which factor is most imoportant regarding his house.
+3. What’s not being considered in this analysis that might be important?
+Raising a home can introduce new maintenance challenges and long-term costs, such as corrosion protection, structural stability checks and additional maintenance due to the increased height.
+And there maybe some resitriction to elevation house, Local governments may have strict regulations regarding building heights, minimum distances from streets, etc. These regulations may limit how high a home can be raised or require additional permitting and approval processes.
